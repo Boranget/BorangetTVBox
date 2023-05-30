@@ -42,9 +42,12 @@ import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -377,7 +380,7 @@ public class ApiConfig {
         // takagen99: Check if Live URL is setup in Settings, if no, get from File Config
         liveChannelGroupList.clear();           //修复从后台切换重复加载频道列表
         String liveURL = Hawk.get(HawkConfig.LIVE_URL, "");
-        String epgURL  = Hawk.get(HawkConfig.EPG_URL, "");
+        String epgURL = Hawk.get(HawkConfig.EPG_URL, "");
 
         String liveURL_final = null;
         try {
@@ -501,7 +504,18 @@ public class ApiConfig {
             VideoParseRuler.clearRule();
             for (JsonElement oneHostRule : infoJson.getAsJsonArray("rules")) {
                 JsonObject obj = (JsonObject) oneHostRule;
-                String host = obj.get("host").getAsString();
+                // 解决某些配置多个 host 为 hosts 的问题
+                Set<String> hostSet = new HashSet<>();
+                if (obj.has("host")) {
+                    hostSet.add(obj.get("host").getAsString());
+                }
+                if (obj.has("hosts")) {
+                    JsonArray hosts = obj.get("hosts").getAsJsonArray();
+                    Iterator<JsonElement> iterator = hosts.iterator();
+                    if (iterator.hasNext()) {
+                        hostSet.add(iterator.next().getAsString());
+                    }
+                }
                 if (obj.has("rule")) {
                     JsonArray ruleJsonArr = obj.getAsJsonArray("rule");
                     ArrayList<String> rule = new ArrayList<>();
@@ -510,7 +524,10 @@ public class ApiConfig {
                         rule.add(oneRule);
                     }
                     if (rule.size() > 0) {
-                        VideoParseRuler.addHostRule(host, rule);
+                        for (String host : hostSet) {
+
+                            VideoParseRuler.addHostRule(host, rule);
+                        }
                     }
                 }
                 if (obj.has("filter")) {
@@ -521,7 +538,9 @@ public class ApiConfig {
                         filter.add(oneFilter);
                     }
                     if (filter.size() > 0) {
-                        VideoParseRuler.addHostFilter(host, filter);
+                        for (String host : hostSet) {
+                            VideoParseRuler.addHostFilter(host, filter);
+                        }
                     }
                 }
             }
